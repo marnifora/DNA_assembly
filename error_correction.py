@@ -1,3 +1,7 @@
+from statistics import stdev, mean
+import math
+
+
 def neighbors1mm(kmer, alpha):
     """ Generate all neighbors at Hamming distance 1 from kmer """
     neighbors = []
@@ -36,3 +40,14 @@ def correct1mm(read, k, kmerhist, alpha, thresh):
                     break
     # Return possibly-corrected read
     return read
+
+
+def remove_rare(reads, k):
+    khist = kmerHist(reads, k)
+    thresh = math.floor(mean(khist.values()) - stdev(khist.values()))
+    print('thresh = %d' % thresh)
+    wrong_kmers = []
+    for k in khist.keys():
+        if khist[k] < thresh:
+            wrong_kmers.append(k)
+    return wrong_kmers

@@ -1,5 +1,7 @@
 from DeBruijn import *
+import DeBruijn_copy as copy
 from error_correction import *
+import sys
 
 
 def reads_from_file(file, l):
@@ -10,21 +12,22 @@ def reads_from_file(file, l):
             break
         if not line.startswith('>'):
             reads.append(line.strip())
+    file.close()
     return reads
 
 
-def test_graph(reads, k, output):
+def build_graph(reads, k, name, wrong_kmers, thresh):
 
-    graph = DeBruijnGraph(reads, k)
-    graph.toDot(output)
+    graph = DeBruijnGraph(reads, k, wrong_kmers, thresh, name)
+    # graph.toDot(weights=True)
 
-    path = list(graph.eulerianPath())
-    assembly = path[0] + ''.join(map(lambda x: x[-1], path[1:]))
+    # path = list(graph.eulerianPath())
+    # assembly = path[0] + ''.join(map(lambda x: x[-1], path[1:]))
 
-    print(path, assembly)
+    # print(path, assembly)
 
 
-def test_error(reads, k, thresh):
+def remove_errors(reads, k, thresh):
     khist = kmerHist(reads, k)
     corrected_reads = []
     for i, read in enumerate(reads):
@@ -35,19 +38,14 @@ def test_error(reads, k, thresh):
     return corrected_reads
 
 
-k = 3
-'''
-reads = reads_from_file(open('./reads/reads0.fasta', 'r'), 1001)
-khist = kmerHist(reads, k)
-print(len(khist))
-print(len([v for v in khist.values() if v == 1]))
-new_reads = test_error(reads, k, 1)
-new_khist = kmerHist(new_reads, k)
-print(len(new_khist))
-print(len([v for v in new_khist.values() if v == 1]))
+k = 25
+name = 'reads5'
 
-# reads = ['AAABBBA']
-'''
-reads = ['to_every_thing_turn_turn_turn_there_is_a_season']
-output = open('test.txt', 'w')
-test_graph(reads, k, output)
+reads = reads_from_file(open('./reads/%s.fasta' % name, 'r'), 1001)
+khist = kmerHist(reads, k)
+new_reads = remove_errors(reads, k, 1)
+wrong_kmers = remove_rare(new_reads, k)
+
+build_graph(new_reads, k, name, wrong_kmers, mean(khist.values()))
+
+# DeBruijnGraph.simplification()
