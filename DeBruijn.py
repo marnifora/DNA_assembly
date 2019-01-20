@@ -85,8 +85,21 @@ class DeBruijnGraph:
         print(len(self.done))
         print('Number of nodes longer than 300: %d' % i)
 
+        self.contigs = []
+        self.best_contigs()
+        print(self.contigs)
+        print(len(self.contigs))
+        print([len(l) for l in self.contigs])
+        self.contigs_to_file()
+
         # removing nodes which are tips
         # print(self.remove_tips(thresh))
+
+    def contigs_to_file(self):
+        o = open('%s_contigs.fasta' % self.name, 'w')
+        for i, contig in enumerate(self.contigs):
+            o.write('>contig%d\n%s\n' % (i, contig))
+        o.close()
 
     def to_csv(self):
 
@@ -205,7 +218,55 @@ class DeBruijnGraph:
         else:
             return 0
 
-    '''
+    def find_contigs(self, node, contig):
+
+        if node not in self.done:
+            self.done.append(node)
+            contig.append(node)
+            if len(node.children) == 0:
+                self.all.append(contig)
+                return 0
+            elif len(node.children) == 1:
+                self.find_contigs(next(iter(node.children.keys())), contig)
+            else:
+                for ch in node.children.keys():
+                    self.find_contigs(ch, contig)
+        elif contig:
+            self.all.append(contig)
+
+    def best_contigs(self):
+
+        for h in self.head:
+            self.all = []
+            self.done = []
+            self.find_contigs(h, [])
+            approved = []
+            for contig in self.all:
+                l = contig[0].km1mer
+                for el in contig[1:]:
+                    l += el.km1mer[self.k-2:]
+                if len(l) > 300:
+                    approved.append(contig)
+            if len(approved) > 1:
+                maks = 0
+                best = None
+                for contig in approved:
+                    cov = []
+                    for el in contig:
+                        cov += el.weights
+                    cov = mean(cov)
+                    if cov > maks:
+                        maks = cov
+                        best = contig
+            elif len(approved) == 1:
+                best = approved[0]
+            else:
+                continue
+            l = best[0].km1mer
+            for el in best[1:]:
+                l += el.km1mer[self.k - 2:]
+            self.contigs.append(l)
+
         
     def toDot(self, weights=False):
         """ Write dot representation to given filehandle.  If 'weights'
@@ -215,10 +276,11 @@ class DeBruijnGraph:
         dotFh = open('%s_graph.dot' % self.name, 'w')
         dotFh.write("digraph \"Graph\" {\n")
         dotFh.write("  bgcolor=\"transparent\";\n")
-        for node in self.G.keys():
+        for node in self.nodes():
             lab = node.km1mer
             dotFh.write("  %s [label=\"%s\"] ;\n" % (lab, lab))
-        for src, dsts in self.G.items():
+        for src in self.nodes:
+            dsts = src.children.keys()
             srclab = src.km1mer
             if weights:
                 weightmap = {}
@@ -234,4 +296,3 @@ class DeBruijnGraph:
                     dstlab = dst.km1mer
                     dotFh.write("  %s -> %s [label=\"\"] ;\n" % (srclab, dstlab))
         dotFh.write("}\n")
-    '''

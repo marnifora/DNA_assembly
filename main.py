@@ -1,5 +1,4 @@
 from DeBruijn import *
-import DeBruijn_copy as copy
 from error_correction import *
 import sys
 
@@ -38,8 +37,8 @@ def remove_errors(reads, k, thresh):
     return corrected_reads
 
 
-k = 25
-name = 'reads5'
+k = 50
+name = 'reads2'
 
 reads = reads_from_file(open('./reads/%s.fasta' % name, 'r'), 1001)
 khist = kmerHist(reads, k)
