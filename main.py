@@ -1,50 +1,42 @@
-from DeBruijn import *
+from graph import *
 from error_correction import *
 import sys
 
 
-def reads_from_file(file, l):
+def reads_from_file(file):
 
     reads = []
-    for i, line in enumerate(file):
-        if i >= 2*l:
-            break
+    for line in file:
         if not line.startswith('>'):
             reads.append(line.strip())
     file.close()
     return reads
 
 
-def build_graph(reads, k, name, wrong_kmers, thresh):
+# Set length of k-mer
+k = 18
+# Name of input reads
+name = 'reads5'
+# Change recursion limit
+sys.setrecursionlimit(2500)
 
-    graph = DeBruijnGraph(reads, k, wrong_kmers, thresh, name)
-    # graph.toDot(weights=True)
+if len(sys.argv) == 3:
+    input = sys.argv[1]
+    output = sys.argv[2]
+elif len(sys.argv) == 2:
+    input = sys.argv[1]
+else:
+    input = './reads/%s.fasta' % name
 
-    # path = list(graph.eulerianPath())
-    # assembly = path[0] + ''.join(map(lambda x: x[-1], path[1:]))
+if 'output' not in globals():
+    output = './%s_contigs.fasta' % input
 
-    # print(path, assembly)
-
-
-def remove_errors(reads, k, thresh):
-    khist = kmerHist(reads, k)
-    corrected_reads = []
-    for i, read in enumerate(reads):
-        corrected = correct1mm(read, k, khist, 'ACGT', thresh)
-        if corrected != read:
-            print('%s => %s' % (read, corrected))
-        corrected_reads.append(corrected)
-    return corrected_reads
-
-
-k = 50
-name = 'reads2'
-
-reads = reads_from_file(open('./reads/%s.fasta' % name, 'r'), 1001)
+reads = reads_from_file(open(input, 'r'))
 khist = kmerHist(reads, k)
 new_reads = remove_errors(reads, k, 1)
 wrong_kmers = remove_rare(new_reads, k)
 
-build_graph(new_reads, k, name, wrong_kmers, mean(khist.values()))
+graph = DeBruijnGraph(new_reads, k, wrong_kmers, mean(khist.values()) - stdev(khist.values()), name, output)
 
-# DeBruijnGraph.simplification()
+# if you want to save graph into dot file
+# graph.to_dot()

@@ -51,3 +51,14 @@ def remove_rare(reads, k):
         if khist[k] < thresh:
             wrong_kmers.append(k)
     return wrong_kmers
+
+
+def remove_errors(reads, k, thresh):
+    khist = kmerHist(reads, k)
+    corrected_reads = []
+    for i, read in enumerate(reads):
+        corrected = correct1mm(read, k, khist, 'ACGT', thresh)
+        if corrected != read:
+            print('%s => %s' % (read, corrected))
+        corrected_reads.append(corrected)
+    return corrected_reads
