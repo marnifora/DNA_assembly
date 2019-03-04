@@ -29,6 +29,9 @@ class DeBruijnGraph:
             return self.km1mer
 
     class Contig:
+        """ Contig object is the set of nodes which create the contig
+            sequence. Attribute weight is the average of all weights
+            of nodes in the path. """
 
         def __init__(self, path):
             self.path = path
@@ -44,13 +47,16 @@ class DeBruijnGraph:
             for n in self.path[1:]:
                 self.seq += n.km1mer[k - 2:]
                 w += n.weights
+            if not w:
+                w = [0]
             self.weight = mean(w)
 
-    def __init__(self, strIter, k, wrong_kmers, thresh, name, output=None):
+    def __init__(self, strIter, k, wrong_kmers, thresh, name, output=None, verbose=False):
         """ Build de Bruijn multigraph given string iterator and k-mer
             length k """
 
         self.name = name
+        self.verbose = verbose
         if output is not None:
             self.output = output
         else:
@@ -74,36 +80,39 @@ class DeBruijnGraph:
 
         # removing wrong kmers, only if they aren't head or tail
         removed = self.remove_rare_kmers(wrong_kmers)
-        print('Number of removed rare kmers = %d' % removed)
-
-        cutnodes = self.cut_graph()
-        print('Number of cut nodes = %d' % cutnodes)
-
+        # cutting edges with weight below thresh
+        cutedges = self.cut_graph()
+        # removing not connected nodes
         notconnected = 0
         for n in list(self.nodes.values()).copy():
             if len(n.children) == 0 and len(n.parents) == 0:
                 del (self.nodes[n.km1mer])
                 notconnected += 1
-
-        print('Number of removed, not-connected nodes = %d' % notconnected)
-        print('Number of nodes = %d' % len(self.nodes))
-
+        # establishing head-nodes
         self.head = [n for n in self.nodes.values() if len(n.parents) == 0 and len(n.children) > 0]
-        print('Real heads = %d' % len(self.head))
-
+        # merging linear nodes
         self.done = []
         for h in self.head:
             self.merge(h, True)
 
-        for n in self.nodes.values():
-            print('%s\t%d\t%d\t%s' % (n.km1mer, len(n.parents), len(n.children), n in self.done))
-        print('Number of nodes after merging: %d' % len(self.nodes))
+        if self.verbose:
+            print('Threshold = %d' % thresh)
+            print('Number of wrong kmers = %d' % len(wrong_kmers))
+            print('Number of removed rare kmers = %d' % removed)
+            print('Number of cut edges = %d' % cutedges)
+            print('Number of removed, not-connected nodes = %d' % notconnected)
+            print('Number of nodes = %d' % len(self.nodes))
+            print('Real heads = %d' % len(self.head))
+            for n in self.nodes.values():
+                print('%s\t%d\t%d\t%s' % (n.km1mer, len(n.parents), len(n.children), n in self.done))
+            print('Number of nodes after merging: %d' % len(self.nodes))
 
+        # establishing heads after merging
         self.head = [n for n in self.nodes.values() if len(n.parents) == 0 and len(n.children) > 0]
-        print('Real heads after merging = %d' % len(self.head))
+        # looking for not-connected nodes
         self.solo = [n for n in self.nodes.values() if len(n.parents) == 0 and len(n.children) == 0]
-        print('Solo nodes after merging = %d' % len(self.solo))
 
+        # looking for contigs based on not-connected, merged nodes
         nodes = copy.deepcopy(self.nodes)
         self.contigs = []
         for n in self.solo:
@@ -113,34 +122,29 @@ class DeBruijnGraph:
                 self.contigs.append(contig)
                 del (nodes[n.km1mer])
 
-        if self.contigs:
-            print('Number of contigs based on solo nodes = %d' % len(self.contigs))
-        else:
-            print('No contigs based on solo nodes found!')
+        if self.verbose:
+            print('Real heads after merging = %d' % len(self.head))
+            print('Solo nodes after merging = %d' % len(self.solo))
+            if self.contigs:
+                print('Number of contigs based on solo nodes = %d' % len(self.contigs))
+            else:
+                print('No contigs based on solo nodes found!')
 
-        if self.head:
-            self.cut_contigs(nodes)
+        # looking for contigs based on more than one node
+        self.cut_contigs(nodes)
 
-        self.done = list(self.nodes.values())
-        removed = []
+        n = set()
         for c in self.contigs:
-            for n in c.path:
-                if n in removed:
-                    print('Node %s in many contigs!!!' % n)
-                try:
-                    self.done.remove(n)
-                    removed.append(n)
-                except ValueError:
-                    print('Node %s not in nodes list!!!' % n)
+            for cc in c.path:
+                n.add(cc)
+        self.used = len(n)/len(self.nodes)
 
-        print('Number of nodes out of any contig = %d' % len(self.done))
-
-        print('Number of contigs = %d' % len(self.contigs))
-        if self.contigs:
+        if self.contigs and self.verbose:
+            print('Number of contigs = %d' % len(self.contigs))
             print('Mean number of nodes in one contig = %.2f' % mean([len(l.path) for l in self.contigs]))
-        self.contigs_to_file()
 
     def cut_graph(self):
+        """ Delete edges which weight is lower than threshold. """
 
         cut = 0
         for n in self.nodes.values():
@@ -153,12 +157,17 @@ class DeBruijnGraph:
         return cut
 
     def contigs_to_file(self):
+        """ Write found contigs into fasta file. """
+
         o = open(self.output, 'w')
         for i, contig in enumerate(self.contigs):
             o.write('>contig%d\n%s\n' % (i, contig))
         o.close()
 
     def remove_rare_kmers(self, wrong_kmers):
+        """ Remove kmers from input list wrong_kmers,
+            but only if given kmer is not head (no input
+            edges) or tail (no output edges). """
 
         def side_kmers(kmers, side):
             nodes = set()
@@ -185,25 +194,11 @@ class DeBruijnGraph:
                     removed += 1
         return removed
 
-    def remove_tips(self, thresh):
-        """ Remove tips from graph. A node is considered a tip if it is disconnected
-            on one of its ends, the length of the information stored in the node is
-            shorter than 2k (important for simplified graph) and the weight of arc
-            leading to this node is < thresh. """
-        removed = []
-        for node in self.nodes.values():
-            if node.nin == 0 or node.nout == 0:
-                if node not in self.G or len(self.G[node]) < thresh:
-                    removed.append(node)
-        for node in removed:
-            del(self.nodes[str(node)])
-            if node in self.G:
-                del(self.G[node])
-        return 'Tips removed = %d' % len(removed)
-
     def merge(self, node, direction):
-        """ If direction is True then function goes down the graph (from parents to children),
-            conversely if direction is False. """
+        """ Merge nodes which are connected only with each other.
+            If direction is True then function goes down the graph
+            (from parents to children), conversely if direction
+            is False. """
 
         if node not in self.done:
             self.done.append(node)
@@ -270,6 +265,7 @@ class DeBruijnGraph:
             return 0
 
     def all_contigs(self, node, contig):
+        """ Return all possible contigs started from the given node. """
 
         if node not in self.done:
             self.done.append(node)
@@ -287,6 +283,7 @@ class DeBruijnGraph:
             return 0
 
     def find_contigs(self, heads):
+        """ Return the best contig for every given head-node. """
 
         contigs = {}
         for h in heads:
@@ -306,20 +303,26 @@ class DeBruijnGraph:
         return contigs
 
     def cut_contigs(self, nodes):
+        """ Searching for the best not-overlapping contigs. """
 
+        altcontigs = False
         contigs = False
         cc = True
         i = 1
         while cc != contigs:
             cc = contigs
             heads = [n for n in nodes.values() if len(n.parents) == 0]
-            if len(heads) == 0:
-                print('No heads found! Iteration %d' % i)
-                break
+            if len(heads) == 0 or altcontigs:
+                if nodes:
+                    maks = max([len(n.children)-len(n.parents) for n in nodes.values()])
+                    heads = [n for n in nodes.values() if len(n.children)-len(n.parents) == maks]
+                else:
+                    break
             contigs = self.find_contigs(heads)
             if not contigs:
-                print('No contigs longer than 300 was found! Iteration %d' % i)
-                break
+                altcontigs = True
+                i += 1
+                continue
             maks = max([len(el.seq)*el.weight for el in contigs.values()])
             k = [kk for kk in contigs.keys() if len(contigs[kk].seq)*contigs[kk].weight == maks][0]
             self.contigs.append(contigs[k])
@@ -337,6 +340,7 @@ class DeBruijnGraph:
             is true, label edges corresponding to distinct k-1-mers
             with weights, instead of writing a separate edge for each
             copy of a k-1-mer. """
+
         dotFh = open('%s_graph.dot' % self.name, 'w')
         dotFh.write("digraph \"Graph\" {\n")
         dotFh.write("  bgcolor=\"transparent\";\n")

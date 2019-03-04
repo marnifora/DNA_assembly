@@ -8,7 +8,8 @@ def neighbors1mm(kmer, alpha):
     for j in range(len(kmer)-1, -1, -1):
         oldc = kmer[j]
         for c in alpha:
-            if c == oldc: continue
+            if c == oldc:
+                continue
             neighbors.append(kmer[:j] + c + kmer[j+1:])
     return neighbors
 
@@ -19,7 +20,7 @@ def kmerHist(reads, k):
     for read in reads:
         for kmer in [read[i:i+k] for i in range(0, len(read)-(k-1))]:
             kmerhist[kmer] = kmerhist.get(kmer, 0) + 1
-    return kmerhist
+    return kmerhist, max(math.floor(mean(kmerhist.values()) - stdev(kmerhist.values())), 0)
 
 
 def correct1mm(read, k, kmerhist, alpha, thresh):
@@ -42,23 +43,19 @@ def correct1mm(read, k, kmerhist, alpha, thresh):
     return read
 
 
-def remove_rare(reads, k):
-    khist = kmerHist(reads, k)
-    thresh = math.floor(mean(khist.values()) - stdev(khist.values()))
-    print('thresh = %d' % thresh)
+def rare_kmers(khist, thresh):
+    """ Finding rare kmers, which should be omitted. """
     wrong_kmers = []
     for k in khist.keys():
-        if khist[k] < thresh:
+        if khist[k] <= thresh:
             wrong_kmers.append(k)
     return wrong_kmers
 
 
-def remove_errors(reads, k, thresh):
-    khist = kmerHist(reads, k)
+def remove_errors(reads, k, khist):
+    """ Removing errors from all given reads. """
     corrected_reads = []
-    for i, read in enumerate(reads):
-        corrected = correct1mm(read, k, khist, 'ACGT', thresh)
-        if corrected != read:
-            print('%s => %s' % (read, corrected))
+    for read in reads:
+        corrected = correct1mm(read, k, khist, 'ACGT', 1)
         corrected_reads.append(corrected)
     return corrected_reads
