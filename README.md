@@ -2,7 +2,10 @@
 
 *English version is below*
 
-### Narzędzie do składanie odczytów pochodzących z sekwencjonowanie DNA typu "single-end".
+<br></br>
+<br></br>
+
+### Narzędzie do składanie odczytów pochodzących z sekwencjonowania DNA typu "single-end".
 
 Polecenie do zadania znajduje się w pliku assignment2en.pdf.
 
@@ -43,8 +46,8 @@ Python: 3.6.6
 
 <br></br>
 <br></br>
-<br></br>
-#####English
+
+##### English
 
 ### A tool for assembling reads originating from single-end DNA sequencing.
 Instructions for the assignment can be found in assignment2en.pdf.
