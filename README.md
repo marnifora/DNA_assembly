@@ -2,7 +2,7 @@
 
 *English version is below*
 
-### Narzędzie do składanie odczytów pochodzących z sekwencjonowania DNA typu "single-end".
+### Narzędzie do składania odczytów pochodzących z sekwencjonowania DNA typu "single-end".
 
 Polecenie do zadania znajduje się w pliku assignment2en.pdf.
 
@@ -14,10 +14,10 @@ Python: 3.6.6
 
 #### Przebieg assemblacji odczytów:
 
-1. Wczytanie readów z pliku fasta.
+1. Wczytanie odczytów z pliku fasta.
 2. Poprawa błędnych odczytów.
     - Na podstawie zliczenia ile i jakich k-merów powstaje z danych wejściowych, wyliczane jest średnie pokrycie k-mera
-        oraz odchylenie standardowe. Wartość średnia-odchylenie uznaje się za próg. Dla k-merów o pokryciu poniżej progu
+        oraz odchylenie standardowe. Wartość (średnia - odchylenie) uznaje się za próg. Dla k-merów o pokryciu poniżej progu
          szukany jest k-mer „siostrzany” - o odległości Hamminga równej 1. Jeśli pokrycie k-meru siostrzanego jest 
          powyżej progu to wejściowy k-mer jest zamieniany w k-mer siostrzany. K-mery o pokryciu poniżej progu, dla 
          których nie istnieją odpowiednio dobre k-mery siostrzane, są zapisywane na listę wrong_kmers.
@@ -35,7 +35,7 @@ Python: 3.6.6
 7. Upraszczanie grafu – łączenie węzłów, które są połączone jedynie ze sobą nawzajem.
 8. Budowa contigów.
     - Dla każdego węzła-głowy szukane są wszystkiego możliwe contigi, następnie wybierany jest najlepszy z nich (o 
-    długości min 300 nukleotydów). W ten sposób w jednej iteracji otrzymujemy po maksymalnie jednym contigu dla 
+    długości minimum 300 nukleotydów). W ten sposób w jednej iteracji otrzymujemy po maksymalnie jednym contigu dla 
     każdego węzła początkowego. Z nich wybierany jest jeden najlepszy. Zostaje on zapisany na listę ostatecznych 
     contigów, a następnie wszystkie węzły go tworzące zostają usunięte. Na tak okrojonym zbiorze węzłów 
     przeprowadzana jest kolejna iteracja.
